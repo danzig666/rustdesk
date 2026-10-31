@@ -12,6 +12,11 @@ on:
       publish-update-metadata:
         type: boolean
         default: false
+      # Comma-separated subset to build: windows-x64, windows-arm64, android.
+      # Empty builds every platform.
+      platforms:
+        type: string
+        default: ""
 
 # NOTE: F-Droid builder script 'flutter/build_fdroid.sh' reads environment
 # variables from this workflow!
@@ -95,6 +100,7 @@ jobs:
         run: python res/update/generate_update_metadata.py check-key
 
   generate-sbom:
+    if: ${{ inputs.platforms == '' }}
     needs: [validate-update-metadata-keys]
     runs-on: ubuntu-latest
 
@@ -128,6 +134,7 @@ jobs:
     uses: ./.github/workflows/bridge.yml
 
   build-RustDeskTempTopMostWindow:
+    if: ${{ inputs.platforms == '' || contains(inputs.platforms, 'windows') }}
     needs: [validate-update-metadata-keys]
     uses: ./.github/workflows/third-party-RustDeskTempTopMostWindow.yml
     strategy:
@@ -150,6 +157,7 @@ jobs:
       target_version: Windows10
 
   build-for-windows-flutter:
+    if: ${{ inputs.platforms == '' || contains(inputs.platforms, 'windows') }}
     name: ${{ matrix.job.target }}
     needs: [build-RustDeskTempTopMostWindow, generate-bridge]
     runs-on: ${{ matrix.job.os }}
@@ -177,6 +185,7 @@ jobs:
               # no NV/Intel/AMD hardware exists on Windows-on-ARM, so vram stays disabled here.
               build-args: "",
             }
+        exclude: ${{ fromJSON((inputs.platforms != '' && !contains(inputs.platforms, 'windows-x64')) && '[{"job":{"target":"x86_64-pc-windows-msvc","os":"windows-2022","arch":"x86_64","flutter-arch":"x64","vcpkg-triplet":"x64-windows-static","build-args":"--vram"}}]' || ((inputs.platforms != '' && !contains(inputs.platforms, 'windows-arm64')) && '[{"job":{"target":"aarch64-pc-windows-msvc","os":"windows-11-arm","arch":"aarch64","flutter-arch":"arm64","vcpkg-triplet":"arm64-windows-static","build-args":""}}]' || '[]')) }}
     steps:
       - name: Export GitHub Actions cache environment variables
         uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
@@ -575,6 +584,7 @@ jobs:
 
   # The fallback for the flutter version, we use Sciter for 32bit Windows.
   build-for-windows-sciter:
+    if: ${{ inputs.platforms == '' }}
     name: ${{ matrix.job.target }} (${{ matrix.job.os }})
     needs: [validate-update-metadata-keys]
     runs-on: ${{ matrix.job.os }}
@@ -787,7 +797,7 @@ jobs:
             ./SignOutput/rustdesk-*.exe
 
   build-rustdesk-ios:
-    if: ${{ inputs.upload-artifact }}
+    if: ${{ inputs.upload-artifact && inputs.platforms == '' }}
     name: build rustdesk ios ipa
     runs-on: ${{ matrix.job.os }}
     needs: [generate-bridge]
@@ -909,6 +919,7 @@ jobs:
 
 
   build-for-macOS:
+    if: ${{ inputs.platforms == '' }}
     name: ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
     needs: [generate-bridge]
@@ -1400,6 +1411,7 @@ jobs:
           files: rustdesk-${{ env.VERSION }}-unsigned.tar.gz
 
   build-rustdesk-android:
+    if: ${{ inputs.platforms == '' || contains(inputs.platforms, 'android') }}
     needs: [generate-bridge]
     name: build rustdesk android apk ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
@@ -1878,6 +1890,7 @@ jobs:
             signed-apk/rustdesk-${{ env.VERSION }}-universal${{ env.suffix }}.apk
 
   build-rustdesk-linux:
+    if: ${{ inputs.platforms == '' }}
     needs: [generate-bridge]
     name: build rustdesk linux ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.on }}
@@ -2227,6 +2240,7 @@ jobs:
   # old for it. A separate job rather than a matrix entry of build-rustdesk-linux: appimage and
   # flatpak need that job, and a failure here must not skip them.
   build-rustdesk-linux-drm:
+    if: ${{ inputs.platforms == '' }}
     needs: [generate-bridge]
     name: build rustdesk linux drm x86_64
     runs-on: ubuntu-22.04
@@ -2546,7 +2560,7 @@ jobs:
           path: ${{ env.DRM_DEB }}
 
   build-rustdesk-linux-sciter:
-    if: ${{ inputs.upload-artifact }}
+    if: ${{ inputs.upload-artifact && inputs.platforms == '' }}
     needs: [validate-update-metadata-keys]
     runs-on: ${{ matrix.job.on }}
     name: build-rustdesk-linux-sciter ${{ matrix.job.target }}
