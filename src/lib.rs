@@ -15,6 +15,7 @@ mod server;
 pub use self::server::*;
 mod client;
 mod lan;
+mod rendezvous_targets;
 #[cfg(not(any(target_os = "ios")))]
 mod rendezvous_mediator;
 #[cfg(not(any(target_os = "ios")))]
@@ -30,6 +31,7 @@ pub mod ipc;
 )))]
 pub mod ui;
 pub(crate) mod update_metadata;
+mod fork_update;
 pub(crate) mod update_hash;
 #[cfg(target_os = "macos")]
 mod manual_update;

@@ -169,6 +169,39 @@ pub(crate) fn verify_update_metadata(
     )
 }
 
+/// Same format and checks as [`verify_update_metadata`], but trusting only the
+/// fork's own key and package id, never RustDesk's.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub(crate) fn verify_fork_update_metadata(
+    metadata_bytes: &[u8],
+    signature_bytes: &[u8],
+    requirements: UpdateMetadataRequirements<'_>,
+    package_id: &str,
+    public_key: [u8; 32],
+) -> ResultType<VerifiedUpdateArtifact> {
+    let trusted_keys = [TrustedUpdateKey {
+        key_id: TRUSTED_UPDATE_KEYS[0].key_id,
+        algorithm: SIGNATURE_ALGORITHM,
+        public_key,
+    }];
+    verify_update_metadata_with_options(
+        metadata_bytes,
+        signature_bytes,
+        VerificationOptions {
+            requirements: MetadataRequirements {
+                expected_version: requirements.expected_version,
+                expected_release_id: requirements.expected_release_id,
+                artifact: requirements.artifact,
+            },
+            expected_package_id: package_id,
+            artifact_url_policy: ArtifactUrlPolicy::ExactPrefix(
+                requirements.expected_artifact_url_prefix,
+            ),
+            trusted_keys: &trusted_keys,
+        },
+    )
+}
+
 fn validate_signature_schema(signature: &UpdateSignature) -> ResultType<()> {
     if signature.schema_version != SIGNATURE_SCHEMA_VERSION {
         return Err(anyhow!("unsupported update signature schema version"));

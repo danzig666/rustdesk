@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common/widgets/api_server_warning.dart';
+import 'package:flutter_hbb/common/widgets/extra_servers.dart';
 import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
 import 'package:flutter_hbb/common/widgets/toolbar.dart';
 import 'package:get/get.dart';
@@ -77,6 +78,8 @@ void showServerSettingsWithValue(
   final relayCtrl = TextEditingController(text: serverConfig.relayServer);
   final apiCtrl = TextEditingController(text: serverConfig.apiServer);
   final keyCtrl = TextEditingController(text: serverConfig.key);
+  final extraServers =
+      ExtraServersSection.isSupported ? await ExtraServersConfig.load() : null;
 
   RxString idServerMsg = ''.obs;
   RxString relayServerMsg = ''.obs;
@@ -102,6 +105,9 @@ void showServerSettingsWithValue(
               relayServer: relayCtrl.text.trim(),
               apiServer: apiCtrl.text.trim(),
               key: keyCtrl.text.trim()));
+      if (ret && extraServers != null) {
+        await extraServers.save();
+      }
       setState(() {
         isInProgress = false;
       });
@@ -191,6 +197,8 @@ void showServerSettingsWithValue(
                   ),
                   SizedBox(height: 8),
                   buildField('Key', keyCtrl, ''),
+                  if (extraServers != null)
+                    ExtraServersSection(config: extraServers),
                   if (isInProgress)
                     Padding(
                       padding: EdgeInsets.only(top: 8),

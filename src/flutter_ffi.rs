@@ -1068,6 +1068,7 @@ pub fn main_set_option(key: String, value: String) -> hbb_common::anyhow::Result
     let is_allow_tls_fallback = key.eq(keys::OPTION_ALLOW_INSECURE_TLS_FALLBACK);
     if is_allow_tls_fallback
         || key.eq("custom-rendezvous-server")
+        || key.eq(keys::OPTION_EXTRA_RENDEZVOUS_SERVERS)
         || key.eq(keys::OPTION_ALLOW_WEBSOCKET)
         || key.eq(keys::OPTION_DISABLE_UDP)
         || key.eq("api-server")
@@ -1179,17 +1180,21 @@ pub fn main_get_lan_peers() -> String {
 
 pub fn main_get_connect_status() -> String {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    {
-        serde_json::to_string(&get_connect_status()).unwrap_or("".to_string())
-    }
+    let mut status = serde_json::to_value(&get_connect_status()).unwrap_or_default();
     #[cfg(any(target_os = "android", target_os = "ios"))]
-    {
+    let mut status = {
         let mut state = hbb_common::config::get_online_state();
         if state > 0 {
             state = 1;
         }
-        serde_json::json!({ "status_num": state }).to_string()
+        serde_json::json!({ "status_num": state })
+    };
+    if let Ok(extra) = serde_json::from_str::<serde_json::Value>(
+        &crate::ui_interface::get_extra_rendezvous_status(),
+    ) {
+        status["extra_servers"] = extra;
     }
+    status.to_string()
 }
 
 pub fn main_check_connect_status() {

@@ -291,5 +291,10 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("api_server_connection_tip", "Your custom server uses unencrypted HTTP. Contact your administrator to enable HTTPS."),
         ("api_server_empty_tip", "With API Server empty, your custom server defaults to HTTP. Contact your administrator to enable HTTPS."),
         ("android-logs-folder-tip", "Choose Android → media to store log files."),
+        ("extra_id_servers_tip", "Register this device's ID on more ID servers at the same time, so it can also be reached through them. The ID server above stays the main one."),
+        ("register_public_tip", "Anyone who knows this ID can then reach the device through the public server, so use a strong password. The ID must be free there."),
+        ("extra_id_servers_other_tip", "Optional. Comma-separated, each written as host:port?key=KEY"),
+        ("extra_outgoing_tip", "If a device is not found on your main ID server, it is looked up on these servers before giving up."),
+        ("extra_outgoing_custom_tip", "Comma-separated: public, or host:port?key=KEY"),
     ].iter().cloned().collect();
 }

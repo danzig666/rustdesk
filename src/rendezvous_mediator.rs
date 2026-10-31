@@ -34,6 +34,7 @@ use base::config::keys::*;
 
 use crate::{
     check_port,
+    rendezvous_targets::RendezvousTarget,
     server::{check_zombie, new as new_server, ConnectionMeta, ServerPtr},
 };
 
@@ -262,7 +263,11 @@ pub struct RendezvousMediator {
     host: String,
     host_prefix: String,
     keep_alive: i32,
+    key: String,
+    primary: bool,
 }
+
+const EXTRA_STOP: &str = "extra-server-stop";
 
 impl RendezvousMediator {
     pub fn restart() {
@@ -311,14 +316,19 @@ impl RendezvousMediator {
                 && !crate::platform::installing_service()
             {
                 let mut futs = Vec::new();
-                let servers = Config::get_rendezvous_servers();
+                let targets = crate::rendezvous_targets::get_rendezvous_targets();
+                crate::rendezvous_targets::reset_extra_status(&targets);
                 SHOULD_EXIT.store(false, Ordering::SeqCst);
                 MANUAL_RESTARTED.store(false, Ordering::SeqCst);
-                for host in servers.clone() {
+                for t in targets {
                     let server = server.clone();
+                    if !t.primary {
+                        futs.push(tokio::spawn(Self::run_extra(server, t)));
+                        continue;
+                    }
                     let timeout = timeout.clone();
                     futs.push(tokio::spawn(async move {
-                        if let Err(err) = Self::start(server, host).await {
+                        if let Err(err) = Self::start(server, t).await {
                             let err = format!("rendezvous mediator error: {err}");
                             // When user reboot, there might be below error, waiting too long
                             // (CONNECT_TIMEOUT 18s) will make user think there is bug
@@ -336,6 +346,7 @@ impl RendezvousMediator {
                 join_all(futs).await;
             } else {
                 server.write().unwrap().close_connections();
+                crate::rendezvous_targets::reset_extra_status(&[]);
             }
             Config::reset_online();
             let timeout = *timeout.read().unwrap();
@@ -348,6 +359,42 @@ impl RendezvousMediator {
                 // https://github.com/rustdesk/rustdesk/issues/12233
                 sleep(0.033).await;
             }
+        }
+    }
+
+    // An extra server failing on its own is retried alone, so it never drops the
+    // primary's registration; only the primary's exit restarts everything.
+    async fn run_extra(server: ServerPtr, t: RendezvousTarget) {
+        loop {
+            let started = Instant::now();
+            if let Err(err) = Self::start(server.clone(), t.clone()).await {
+                if err.to_string() == EXTRA_STOP {
+                    return;
+                }
+                log::error!("rendezvous mediator error ({}): {err}", t.host);
+                crate::rendezvous_targets::set_extra_status(
+                    &t.host,
+                    crate::rendezvous_targets::STATE_ERROR,
+                    err.to_string(),
+                );
+            }
+            while !SHOULD_EXIT.load(Ordering::SeqCst)
+                && (started.elapsed().as_millis() as u64) < CONNECT_TIMEOUT
+            {
+                sleep(1.).await;
+            }
+            if SHOULD_EXIT.load(Ordering::SeqCst) {
+                return;
+            }
+        }
+    }
+
+    // The primary reads the key live, as before; an extra server uses its own.
+    async fn key(&self) -> String {
+        if self.primary {
+            crate::get_key(true).await
+        } else {
+            self.key.clone()
         }
     }
 
@@ -364,8 +411,9 @@ impl RendezvousMediator {
             .unwrap_or(host.to_owned())
     }
 
-    pub async fn start_udp(server: ServerPtr, host: String) -> ResultType<()> {
-        let host = check_port(&host, RENDEZVOUS_PORT);
+    pub async fn start_udp(server: ServerPtr, t: RendezvousTarget) -> ResultType<()> {
+        let host = check_port(&t.host, RENDEZVOUS_PORT);
+        let primary = t.primary;
         log::info!("start udp: {host}");
         let (mut socket, mut addr) = new_udp_for(&host, CONNECT_TIMEOUT).await?;
         let mut rz = Self {
@@ -373,6 +421,8 @@ impl RendezvousMediator {
             host: host.clone(),
             host_prefix: Self::get_host_prefix(&host),
             keep_alive: crate::DEFAULT_KEEP_ALIVE,
+            key: t.key,
+            primary,
         };
 
         let mut timer = crate::rustdesk_interval(interval(crate::TIMER_OUT));
@@ -411,7 +461,9 @@ impl RendezvousMediator {
                     n = 3000;
                 }
                 if (latency - old_latency).abs() > n || old_latency <= 0 {
-                    Config::update_latency(&host, latency);
+                    if primary {
+                        Config::update_latency(&host, latency);
+                    }
                     log::debug!("Latency of {}: {}ms", host, latency as f64 / 1000.);
                     old_latency = latency;
                 }
@@ -458,7 +510,9 @@ impl RendezvousMediator {
                         if timeout {
                             fails += 1;
                             if fails >= MAX_FAILS2 {
-                                Config::update_latency(&host, -1);
+                                if primary {
+                                    Config::update_latency(&host, -1);
+                                }
                                 old_latency = 0;
                                 if last_dns_check.elapsed().as_millis() as i64 > DNS_INTERVAL {
                                     // in some case of network reconnect (dial IP network),
@@ -471,7 +525,9 @@ impl RendezvousMediator {
                                     last_dns_check = Instant::now();
                                 }
                             } else if fails >= MAX_FAILS1 {
-                                Config::update_latency(&host, 0);
+                                if primary {
+                                    Config::update_latency(&host, 0);
+                                }
                                 old_latency = 0;
                             }
                         }
@@ -495,6 +551,12 @@ impl RendezvousMediator {
         match msg {
             Some(rendezvous_message::Union::RegisterPeerResponse(rpr)) => {
                 update_latency();
+                if !self.primary && !rpr.request_pk {
+                    crate::rendezvous_targets::set_extra_online(
+                        &self.host,
+                        matches!(sink, Sink::Framed(..)),
+                    );
+                }
                 if rpr.request_pk {
                     log::info!("request_pk received from {}", self.host);
                     self.register_pk(sink).await?;
@@ -503,6 +565,14 @@ impl RendezvousMediator {
             Some(rendezvous_message::Union::RegisterPkResponse(rpr)) => {
                 update_latency();
                 match rpr.result.enum_value() {
+                    Ok(register_pk_response::Result::OK) if !self.primary => {
+                        Config::set_key_confirmed(true);
+                        Config::set_host_key_confirmed(&self.host_prefix, true);
+                        crate::rendezvous_targets::set_extra_online(
+                            &self.host,
+                            matches!(sink, Sink::Framed(..)),
+                        );
+                    }
                     Ok(register_pk_response::Result::OK) => {
                         Config::set_key_confirmed(true);
                         Config::set_host_key_confirmed(&self.host_prefix, true);
@@ -513,6 +583,16 @@ impl RendezvousMediator {
                     }
                     Ok(register_pk_response::Result::UUID_MISMATCH) => {
                         self.handle_uuid_mismatch(sink).await?;
+                    }
+                    Ok(register_pk_response::Result::NOT_DEPLOYED) if !self.primary => {
+                        log::warn!("{} requires deployment; not registering there", self.host);
+                        crate::rendezvous_targets::set_extra_status(
+                            &self.host,
+                            crate::rendezvous_targets::STATE_NOT_DEPLOYED,
+                            String::new(),
+                        );
+                        Config::set_host_key_confirmed(&self.host_prefix, false);
+                        bail!(EXTRA_STOP);
                     }
                     Ok(register_pk_response::Result::NOT_DEPLOYED) => {
                         if !NEEDS_DEPLOY.load(Ordering::SeqCst) {
@@ -586,18 +666,21 @@ impl RendezvousMediator {
         Ok(())
     }
 
-    pub async fn start_tcp(server: ServerPtr, host: String) -> ResultType<()> {
-        let host = check_port(&host, RENDEZVOUS_PORT);
+    pub async fn start_tcp(server: ServerPtr, t: RendezvousTarget) -> ResultType<()> {
+        let host = check_port(&t.host, RENDEZVOUS_PORT);
+        let primary = t.primary;
         log::info!("start tcp: {}", hbb_common::websocket::check_ws(&host));
         let mut conn = connect_tcp(host.clone(), CONNECT_TIMEOUT).await?;
-        let key = crate::get_key(true).await;
-        crate::secure_tcp(&mut conn, &key).await?;
         let mut rz = Self {
             addr: conn.local_addr().into_target_addr()?,
             host: host.clone(),
             host_prefix: Self::get_host_prefix(&host),
             keep_alive: crate::DEFAULT_KEEP_ALIVE,
+            key: t.key,
+            primary,
         };
+        let key = rz.key().await;
+        crate::secure_tcp(&mut conn, &key).await?;
         let mut timer = crate::rustdesk_interval(interval(crate::TIMER_OUT));
         let mut last_register_sent: Option<Instant> = None;
         let mut last_recv_msg = Instant::now();
@@ -608,7 +691,9 @@ impl RendezvousMediator {
                 let latency = last_register_sent
                     .map(|x| x.elapsed().as_micros() as i64)
                     .unwrap_or(0);
-                Config::update_latency(&host, latency);
+                if primary {
+                    Config::update_latency(&host, latency);
+                }
                 log::debug!("Latency of {}: {}ms", host, latency as f64 / 1000.);
             };
             select! {
@@ -644,8 +729,8 @@ impl RendezvousMediator {
         Ok(())
     }
 
-    pub async fn start(server: ServerPtr, host: String) -> ResultType<()> {
-        log::info!("start rendezvous mediator of {}", host);
+    pub async fn start(server: ServerPtr, host: RendezvousTarget) -> ResultType<()> {
+        log::info!("start rendezvous mediator of {}", host.host);
         //If the investment agent type is http or https, then tcp forwarding is enabled.
         if (cfg!(debug_assertions) && option_env!("TEST_TCP").is_some())
             || Config::is_proxy()
@@ -714,7 +799,7 @@ impl RendezvousMediator {
         // controller falls back to its other transports.
         let mut webrtc_sdp_answer = webrtc_sdp_answer;
         if !webrtc_sdp_answer.is_empty() {
-            let key = crate::get_key(true).await;
+            let key = self.key().await;
             if let Err(err) = crate::secure_tcp_required(&mut socket, &key).await {
                 log::warn!("relaying without the WebRTC answer, it cannot be encrypted: {err}");
                 webrtc_sdp_answer = String::new();
@@ -745,6 +830,7 @@ impl RendezvousMediator {
             secure,
             is_ipv4(&self.addr),
             meta,
+            self.key().await,
         )
         .await;
         Ok(())
@@ -920,6 +1006,7 @@ impl RendezvousMediator {
             let host = self.host.clone();
             let socket_addr = return_route.clone();
             let session_key_for_ice = session_key.clone();
+            let key = self.key().await;
             tokio::spawn(async move {
                 // Candidates ride a dedicated TCP connection to the rendezvous server, like
                 // the answer, NOT the mediator channel: that channel is UDP in the default
@@ -929,7 +1016,6 @@ impl RendezvousMediator {
                 // trickle, and TCP reliability replaces the old 400ms duplicate re-send
                 // (the controller keeps its own re-send for the server->peer UDP downlink).
                 let mut conn = None;
-                let key = crate::get_key(true).await;
                 while let Some(candidate) = local_ice_rx.recv().await {
                     let mut msg = Message::new();
                     msg.set_ice_candidate(IceCandidate {
@@ -1158,7 +1244,7 @@ impl RendezvousMediator {
             let mut socket = connect_tcp(&*self.host, CONNECT_TIMEOUT).await?;
             // The answer goes out only on a channel that is actually encrypted; otherwise this
             // WebRTC attempt is abandoned and the controller falls back to its other transports.
-            crate::secure_tcp_required(&mut socket, &crate::get_key(true).await).await?;
+            crate::secure_tcp_required(&mut socket, &self.key().await).await?;
             socket.send(&msg_out).await?;
             return Ok(());
         }
@@ -1274,6 +1360,19 @@ impl RendezvousMediator {
     }
 
     async fn handle_uuid_mismatch(&mut self, socket: Sink<'_>) -> ResultType<()> {
+        if !self.primary {
+            log::warn!(
+                "ID {} is taken on {}; not registering there",
+                Config::get_id(),
+                self.host
+            );
+            crate::rendezvous_targets::set_extra_status(
+                &self.host,
+                crate::rendezvous_targets::STATE_ID_TAKEN,
+                String::new(),
+            );
+            bail!(EXTRA_STOP);
+        }
         {
             let mut solving = SOLVING_PK_MISMATCH.lock().await;
             if solving.is_empty() || *solving == self.host {
@@ -1319,7 +1418,11 @@ impl RendezvousMediator {
     }
 
     fn get_relay_server(&self, provided_by_rendezvous_server: String) -> String {
-        let mut relay_server = Config::get_option("relay-server");
+        let mut relay_server = if self.primary {
+            Config::get_option("relay-server")
+        } else {
+            String::new()
+        };
         if relay_server.is_empty() {
             relay_server = provided_by_rendezvous_server;
         }
@@ -1751,6 +1854,8 @@ mod tests {
             host: host.to_string(),
             host_prefix: String::new(),
             keep_alive: 0,
+            key: String::new(),
+            primary: true,
         };
         let msg_punch = PunchHoleSent {
             webrtc_sdp_answer: "answer".to_owned(),

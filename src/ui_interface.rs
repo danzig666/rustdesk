@@ -68,6 +68,7 @@ lazy_static::lazy_static! {
         video_conn_count: 0,
     }));
     static ref ASYNC_JOB_STATUS : Arc<Mutex<String>> = Default::default();
+    static ref EXTRA_RENDEZVOUS_STATUS: Arc<Mutex<String>> = Default::default();
     static ref ASYNC_HTTP_STATUS : Arc<Mutex<HashMap<String, String>>> = Arc::new(Mutex::new(HashMap::new()));
     static ref TEMPORARY_PASSWD : Arc<Mutex<String>> = Arc::new(Mutex::new("".to_owned()));
     static ref IS_REMOTE_MODIFY_ENABLED_BY_CONTROL_PERMISSIONS : Arc<Mutex<Option<bool>>> = Arc::new(Mutex::new(None));
@@ -629,6 +630,15 @@ pub fn check_mouse_time() {
         let sender = SENDER.lock().unwrap();
         allow_err!(sender.send(ipc::Data::MouseMoveTime(0)));
     }
+}
+
+/// Registration state of each `extra-rendezvous-servers` entry, as JSON.
+#[cfg(feature = "flutter")]
+pub fn get_extra_rendezvous_status() -> String {
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    return crate::rendezvous_targets::extra_status_json();
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    return EXTRA_RENDEZVOUS_STATUS.lock().unwrap().clone();
 }
 
 #[inline]
@@ -1436,6 +1446,8 @@ async fn check_connect_status_(reconnect: bool, rx: mpsc::UnboundedReceiver<ipc:
                                     }
                                 } else if name == "temporary-password" {
                                     *TEMPORARY_PASSWD.lock().unwrap() = value;
+                                } else if name == "extra-rendezvous-status" {
+                                    *EXTRA_RENDEZVOUS_STATUS.lock().unwrap() = value;
                                 }
                             }
                             #[cfg(feature = "flutter")]
@@ -1486,6 +1498,7 @@ async fn check_connect_status_(reconnect: bool, rx: mpsc::UnboundedReceiver<ipc:
                         c.send(&ipc::Data::Options(None)).await.ok();
                         c.send(&ipc::Data::Config(("id".to_owned(), None))).await.ok();
                         c.send(&ipc::Data::Config(("temporary-password".to_owned(), None))).await.ok();
+                        c.send(&ipc::Data::Config(("extra-rendezvous-status".to_owned(), None))).await.ok();
                         #[cfg(feature = "flutter")]
                         c.send(&ipc::Data::VideoConnCount(None)).await.ok();
                         c.send(&ipc::Data::ControlPermissionsRemoteModify(None)).await.ok();
