@@ -61,12 +61,12 @@ env:
   UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"
   PUBLISH_UPDATE_METADATA: "${{ inputs.publish-update-metadata }}"
   SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}-2"
-  # Fork: built-in server defaults (src/rendezvous_targets.rs); a repository secret of the
-  # same name overrides the value here.
-  DEFAULT_RENDEZVOUS_SERVER: "${{ secrets.DEFAULT_RENDEZVOUS_SERVER || 'rustdesk.t4terv.hu' }}"
-  DEFAULT_RS_PUB_KEY: "${{ secrets.DEFAULT_RS_PUB_KEY || 'UzL1T7bR38kvQIEldTdiEgWQKyzo8MuhgETnMppCk5s=' }}"
-  DEFAULT_RELAY_SERVER: "${{ secrets.DEFAULT_RELAY_SERVER || 'rustdesk.t4terv.hu:21117' }}"
-  DEFAULT_API_SERVER: "${{ secrets.DEFAULT_API_SERVER || 'https://rustdesk.t4terv.hu' }}"
+  # Fork: built-in server defaults (src/rendezvous_targets.rs), from repository secrets of
+  # the same names; unset ones build in nothing.
+  DEFAULT_RENDEZVOUS_SERVER: "${{ secrets.DEFAULT_RENDEZVOUS_SERVER }}"
+  DEFAULT_RS_PUB_KEY: "${{ secrets.DEFAULT_RS_PUB_KEY }}"
+  DEFAULT_RELAY_SERVER: "${{ secrets.DEFAULT_RELAY_SERVER }}"
+  DEFAULT_API_SERVER: "${{ secrets.DEFAULT_API_SERVER }}"
   DEFAULT_EXTRA_RENDEZVOUS_SERVERS: "${{ secrets.DEFAULT_EXTRA_RENDEZVOUS_SERVERS || 'public' }}"
   # Fork updates (src/fork_update.rs): built-in copies update only from this repository's
   # fork-build-* releases signed with FORK_UPDATE_ED25519_SEED, never from rustdesk.com.
