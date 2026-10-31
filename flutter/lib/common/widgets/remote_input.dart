@@ -535,6 +535,11 @@ class _RawTouchGestureDetectorRegionState
       _twoFingerTravel += d.focalPointDelta;
       _twoFingerGesture = classifyTwoFingerGesture(d.scale, _twoFingerTravel);
       if (_twoFingerGesture == TwoFingerGesture.undecided) return true;
+      // The remote scrolls whatever is under its cursor: in touch mode put it
+      // under the fingers, else it stays wherever the last tap left it.
+      if (_twoFingerGesture == TwoFingerGesture.scroll && handleTouch) {
+        await ffi.cursorModel.move(d.localFocalPoint.dx, d.localFocalPoint.dy);
+      }
     }
     if (_twoFingerGesture != TwoFingerGesture.scroll) return false;
     _twoFingerScrollIntegral +=
