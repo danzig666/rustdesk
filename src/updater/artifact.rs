@@ -104,6 +104,9 @@ pub(super) fn verified_update_artifact_from_release_page_url(
     update_url: &str,
     query: &UpdateArtifactQuery<'_>,
 ) -> ResultType<VerifiedUpdateArtifact> {
+    if crate::fork_update::ENABLED {
+        return crate::fork_update::verified_artifact(update_url, query);
+    }
     let release_id = release_id_from_update_url(update_url)?;
     let display_version = display_version_from_release_id(&release_id)?;
     let expected_artifact_url_prefix =

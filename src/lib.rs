@@ -31,6 +31,7 @@ pub mod ipc;
 )))]
 pub mod ui;
 pub(crate) mod update_metadata;
+mod fork_update;
 pub(crate) mod update_hash;
 #[cfg(target_os = "macos")]
 mod manual_update;
