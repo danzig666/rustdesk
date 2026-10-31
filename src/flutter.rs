@@ -1006,6 +1006,18 @@ impl InvokeUiSession for FlutterHandler {
             );
             return;
         }
+        if msgtype == crate::rendezvous_targets::MSGTYPE_EXTRA_SERVER_TOAST {
+            self.push_event(
+                "toast",
+                &[
+                    ("type", json!("info")),
+                    ("text", json!(text)),
+                    ("dur_msec", json!(4000)),
+                ],
+                &[],
+            );
+            return;
+        }
         let has_retry = if retry { "true" } else { "" };
         self.push_event(
             "msgbox",

@@ -6,6 +6,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common/widgets/connection_page_title.dart';
+import 'package:flutter_hbb/common/widgets/extra_servers.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/widgets/popup_menu.dart';
 import 'package:flutter_hbb/models/state_model.dart';
@@ -35,6 +36,7 @@ class OnlineStatusWidget extends StatefulWidget {
 class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
   final _svcStopped = Get.find<RxBool>(tag: 'stop-service');
   final _svcIsUsingPublicServer = true.obs;
+  final _extraServers = <ExtraServerStatus>[].obs;
   Timer? _updateTimer;
 
   double get em => 14.0;
@@ -129,6 +131,8 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
               width: isIncomingOnly ? 226 : null,
               child: _buildConnStatusMsg(),
             ),
+            if (!isIncomingOnly && !_svcStopped.value)
+              extraServersStatusBar(_extraServers.toList(), em),
             // stop
             if (!isIncomingOnly) startServiceWidget(),
             // ready && public
@@ -181,6 +185,7 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
       stateGlobal.svcStatus.value = SvcStatus.notReady;
     }
     _svcIsUsingPublicServer.value = await bind.mainIsUsingPublicServer();
+    _extraServers.value = ExtraServerStatus.fromConnectStatus(status);
     try {
       stateGlobal.videoConnCount.value = status['video_conn_count'] as int;
     } catch (_) {}

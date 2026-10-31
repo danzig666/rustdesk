@@ -988,6 +988,8 @@ async fn handle(data: Data, stream: &mut Connection) {
                     ));
                 } else if name == "rendezvous_servers" {
                     value = Some(Config::get_rendezvous_servers().join(","));
+                } else if name == "extra-rendezvous-status" {
+                    value = Some(crate::rendezvous_targets::extra_status_json());
                 } else if name == "fingerprint" {
                     value = if Config::get_key_confirmed() {
                         Some(crate::common::pk_to_fingerprint(Config::get_key_pair().1))

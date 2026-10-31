@@ -455,11 +455,26 @@ impl Client {
         for (server, srv_key) in extras {
             log::info!("{peer} failed on the primary server ({first_err}), trying {server}");
             interface.get_lch().write().unwrap().other_server =
-                Some((peer.to_owned(), server, srv_key));
+                Some((peer.to_owned(), server.clone(), srv_key));
             res = Self::_start(peer, key, token, conn_type, interface.clone()).await;
             match &res {
                 // Keep other_server: reconnects of this session take the same path.
-                Ok(_) => return res,
+                Ok(_) => {
+                    #[cfg(feature = "flutter")]
+                    interface.msgbox(
+                        crate::rendezvous_targets::MSGTYPE_EXTRA_SERVER_TOAST,
+                        "",
+                        &if server == crate::rendezvous_targets::PUBLIC_SERVER {
+                            crate::lang::translate(
+                                "Connected through the public RustDesk server".to_owned(),
+                            )
+                        } else {
+                            crate::lang::translate(format!("Connected through {{{server}}}"))
+                        },
+                        "",
+                    );
+                    return res;
+                }
                 Err(e) => log::info!("{peer} failed on the extra server too: {e}"),
             }
         }

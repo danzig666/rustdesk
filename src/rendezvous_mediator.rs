@@ -317,6 +317,7 @@ impl RendezvousMediator {
             {
                 let mut futs = Vec::new();
                 let targets = crate::rendezvous_targets::get_rendezvous_targets();
+                crate::rendezvous_targets::reset_extra_status(&targets);
                 SHOULD_EXIT.store(false, Ordering::SeqCst);
                 MANUAL_RESTARTED.store(false, Ordering::SeqCst);
                 for t in targets {
@@ -345,6 +346,7 @@ impl RendezvousMediator {
                 join_all(futs).await;
             } else {
                 server.write().unwrap().close_connections();
+                crate::rendezvous_targets::reset_extra_status(&[]);
             }
             Config::reset_online();
             let timeout = *timeout.read().unwrap();
@@ -370,6 +372,11 @@ impl RendezvousMediator {
                     return;
                 }
                 log::error!("rendezvous mediator error ({}): {err}", t.host);
+                crate::rendezvous_targets::set_extra_status(
+                    &t.host,
+                    crate::rendezvous_targets::STATE_ERROR,
+                    err.to_string(),
+                );
             }
             while !SHOULD_EXIT.load(Ordering::SeqCst)
                 && (started.elapsed().as_millis() as u64) < CONNECT_TIMEOUT
@@ -544,6 +551,12 @@ impl RendezvousMediator {
         match msg {
             Some(rendezvous_message::Union::RegisterPeerResponse(rpr)) => {
                 update_latency();
+                if !self.primary && !rpr.request_pk {
+                    crate::rendezvous_targets::set_extra_online(
+                        &self.host,
+                        matches!(sink, Sink::Framed(..)),
+                    );
+                }
                 if rpr.request_pk {
                     log::info!("request_pk received from {}", self.host);
                     self.register_pk(sink).await?;
@@ -555,6 +568,10 @@ impl RendezvousMediator {
                     Ok(register_pk_response::Result::OK) if !self.primary => {
                         Config::set_key_confirmed(true);
                         Config::set_host_key_confirmed(&self.host_prefix, true);
+                        crate::rendezvous_targets::set_extra_online(
+                            &self.host,
+                            matches!(sink, Sink::Framed(..)),
+                        );
                     }
                     Ok(register_pk_response::Result::OK) => {
                         Config::set_key_confirmed(true);
@@ -569,6 +586,11 @@ impl RendezvousMediator {
                     }
                     Ok(register_pk_response::Result::NOT_DEPLOYED) if !self.primary => {
                         log::warn!("{} requires deployment; not registering there", self.host);
+                        crate::rendezvous_targets::set_extra_status(
+                            &self.host,
+                            crate::rendezvous_targets::STATE_NOT_DEPLOYED,
+                            String::new(),
+                        );
                         Config::set_host_key_confirmed(&self.host_prefix, false);
                         bail!(EXTRA_STOP);
                     }
@@ -1343,6 +1365,11 @@ impl RendezvousMediator {
                 "ID {} is taken on {}; not registering there",
                 Config::get_id(),
                 self.host
+            );
+            crate::rendezvous_targets::set_extra_status(
+                &self.host,
+                crate::rendezvous_targets::STATE_ID_TAKEN,
+                String::new(),
             );
             bail!(EXTRA_STOP);
         }
