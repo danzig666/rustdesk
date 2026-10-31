@@ -61,6 +61,12 @@ env:
   UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"
   PUBLISH_UPDATE_METADATA: "${{ inputs.publish-update-metadata }}"
   SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}-2"
+  # Fork: built-in server defaults (src/rendezvous_targets.rs); unset secrets change nothing.
+  DEFAULT_RENDEZVOUS_SERVER: "${{ secrets.DEFAULT_RENDEZVOUS_SERVER }}"
+  DEFAULT_RS_PUB_KEY: "${{ secrets.DEFAULT_RS_PUB_KEY }}"
+  DEFAULT_RELAY_SERVER: "${{ secrets.DEFAULT_RELAY_SERVER }}"
+  DEFAULT_API_SERVER: "${{ secrets.DEFAULT_API_SERVER }}"
+  DEFAULT_EXTRA_RENDEZVOUS_SERVERS: "${{ secrets.DEFAULT_EXTRA_RENDEZVOUS_SERVERS }}"
 
 jobs:
   validate-update-metadata-keys:

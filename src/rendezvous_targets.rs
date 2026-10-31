@@ -80,6 +80,37 @@ fn outgoing_option<'a>(outgoing: &'a str, extra: &'a str) -> &'a str {
     }
 }
 
+/// Server settings baked in at build time (from CI secrets), used as defaults:
+/// anything set in the app or with `--option` still wins.
+const BUILD_DEFAULTS: &[(&str, Option<&str>)] = &[
+    (
+        "custom-rendezvous-server",
+        option_env!("DEFAULT_RENDEZVOUS_SERVER"),
+    ),
+    ("key", option_env!("DEFAULT_RS_PUB_KEY")),
+    ("relay-server", option_env!("DEFAULT_RELAY_SERVER")),
+    ("api-server", option_env!("DEFAULT_API_SERVER")),
+    (
+        OPTION_EXTRA_RENDEZVOUS_SERVERS,
+        option_env!("DEFAULT_EXTRA_RENDEZVOUS_SERVERS"),
+    ),
+];
+
+pub fn apply_build_defaults() {
+    apply_defaults(BUILD_DEFAULTS);
+}
+
+fn apply_defaults(defaults: &[(&str, Option<&str>)]) {
+    let mut settings = hbb_common::config::DEFAULT_SETTINGS.write().unwrap();
+    for (k, v) in defaults {
+        if let Some(v) = v.map(str::trim).filter(|v| !v.is_empty()) {
+            settings
+                .entry(k.to_string())
+                .or_insert_with(|| v.to_owned());
+        }
+    }
+}
+
 pub fn server_host(server: &str) -> String {
     if server.eq_ignore_ascii_case(PUBLIC_SERVER) {
         RENDEZVOUS_SERVERS[0].to_owned()
@@ -265,6 +296,31 @@ mod tests {
         set_extra_online(RENDEZVOUS_SERVERS[0], false);
         let v: serde_json::Value = serde_json::from_str(&extra_status_json()).unwrap();
         assert_eq!(v[0]["state"], STATE_ONLINE);
+    }
+
+    #[test]
+    fn build_defaults_skip_empty_values_and_keep_existing_ones() {
+        hbb_common::config::DEFAULT_SETTINGS
+            .write()
+            .unwrap()
+            .insert("relay-server".to_owned(), "from-custom-client".to_owned());
+        apply_defaults(&[
+            ("test-build-default", Some(" my.server ")),
+            ("test-build-empty", Some("")),
+            ("test-build-unset", None),
+            ("relay-server", Some("from-build")),
+        ]);
+        let d = hbb_common::config::DEFAULT_SETTINGS.read().unwrap();
+        assert_eq!(
+            d.get("test-build-default").map(String::as_str),
+            Some("my.server")
+        );
+        assert!(!d.contains_key("test-build-empty"));
+        assert!(!d.contains_key("test-build-unset"));
+        assert_eq!(
+            d.get("relay-server").map(String::as_str),
+            Some("from-custom-client")
+        );
     }
 
     #[test]
