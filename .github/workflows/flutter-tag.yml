@@ -2,6 +2,15 @@ name: Flutter Tag Build
 
 on:
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: "Only build these (comma-separated: windows-x64, windows-arm64, android); empty builds all"
+        type: string
+        default: ""
+      upload-tag:
+        description: "Release tag to upload to; empty uses the ref name"
+        type: string
+        default: ""
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
@@ -15,5 +24,6 @@ jobs:
     secrets: inherit
     with:
       upload-artifact: true
-      upload-tag: ${{ github.ref_name }}
+      upload-tag: ${{ inputs.upload-tag || github.ref_name }}
+      platforms: ${{ inputs.platforms || '' }}
       publish-update-metadata: ${{ github.repository == 'rustdesk/rustdesk' }}
