@@ -1509,6 +1509,47 @@ jobs:
           tag_name: ${{ env.TAG_NAME }}
           files: rustdesk-${{ env.VERSION }}-unsigned.tar.gz
 
+  # Fork: opens the Android signing keystore with the secrets in about a minute, so a
+  # wrong secret shows up at once instead of at the end of the APK build. Run it alone
+  # with platforms "signing-check".
+  check-android-signing:
+    if: ${{ contains(inputs.platforms, 'signing-check') || inputs.platforms == '' || contains(inputs.platforms, 'android') }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check Android signing secrets
+        shell: bash
+        env:
+          KEY_B64: ${{ secrets.ANDROID_SIGNING_KEY }}
+          ALIAS: ${{ secrets.ANDROID_ALIAS }}
+          STORE_PW: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
+          KEY_PW: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -u
+          if [ -z "$KEY_B64" ]; then
+            echo "::warning::ANDROID_SIGNING_KEY is not set: APKs are signed with a random debug key and cannot update each other."
+            exit 0
+          fi
+          for v in ALIAS STORE_PW KEY_PW; do
+            if [ -z "${!v}" ]; then echo "::error::The secret for $v is empty."; exit 1; fi
+          done
+          if ! printf '%s' "$KEY_B64" | tr -d ' \r\n' | base64 -d > ks.jks 2>/dev/null; then
+            echo "::error::ANDROID_SIGNING_KEY is not valid base64 (paste the whole .b64 file contents)."; exit 1
+          fi
+          if ! keytool -list -keystore ks.jks -storepass "$STORE_PW" > /dev/null 2>&1; then
+            echo "::error::ANDROID_KEY_STORE_PASSWORD does not open the keystore, or ANDROID_SIGNING_KEY is not a keystore."; exit 1
+          fi
+          if ! keytool -list -keystore ks.jks -storepass "$STORE_PW" -alias "$ALIAS" > /dev/null 2>&1; then
+            echo "::error::ANDROID_ALIAS does not match the key in the keystore. Aliases in it:"
+            keytool -list -keystore ks.jks -storepass "$STORE_PW" | grep -i "entry" || true
+            exit 1
+          fi
+          if ! keytool -certreq -keystore ks.jks -storepass "$STORE_PW" -alias "$ALIAS" -keypass "$KEY_PW" > /dev/null 2>&1; then
+            echo "::error::ANDROID_KEY_PASSWORD does not unlock the key."; exit 1
+          fi
+          echo "Android signing secrets OK:"
+          keytool -list -v -keystore ks.jks -storepass "$STORE_PW" -alias "$ALIAS" | grep -E "Owner:|SHA256:"
+          rm -f ks.jks
+
   build-rustdesk-android:
     if: ${{ inputs.platforms == '' || contains(inputs.platforms, 'android') }}
     needs: [generate-bridge]
