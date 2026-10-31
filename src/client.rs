@@ -465,11 +465,11 @@ impl Client {
                         crate::rendezvous_targets::MSGTYPE_EXTRA_SERVER_TOAST,
                         "",
                         &if server == crate::rendezvous_targets::PUBLIC_SERVER {
-                            crate::lang::translate(
+                            crate::rendezvous_targets::translate(
                                 "Connected through the public RustDesk server".to_owned(),
                             )
                         } else {
-                            crate::lang::translate(format!("Connected through {{{server}}}"))
+                            crate::rendezvous_targets::translate(format!("Connected through {{{server}}}"))
                         },
                         "",
                     );

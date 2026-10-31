@@ -10,6 +10,16 @@ pub const PUBLIC_SERVER: &str = "public";
 #[cfg(feature = "flutter")]
 pub const MSGTYPE_EXTRA_SERVER_TOAST: &str = "custom-info-extra-server";
 
+// `lang::translate` reads the system locale and exists on desktop only; mobile
+// falls back to the app's own language setting.
+#[cfg(feature = "flutter")]
+pub fn translate(name: String) -> String {
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    return crate::lang::translate(name);
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    return crate::lang::translate_locale(name, "");
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct RendezvousTarget {
     pub host: String,
