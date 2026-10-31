@@ -100,6 +100,9 @@ class _RawTouchGestureDetectorRegionState
   // the screen last changed; the two-finger classifier compares the two.
   final Map<int, Offset> _touchNow = {};
   Map<int, Offset> _touchStart = {};
+  // Mobile zoom/pan runs one update behind, so the jump a finger makes in its
+  // last move before lifting can be dropped instead of applied.
+  ScaleUpdateDetails? _pendingMobileZoom;
 
   // Workaround tap down event when two fingers are used to scale(mobile)
   TapDownDetails? _lastTapDownDetails;
@@ -147,6 +150,18 @@ class _RawTouchGestureDetectorRegionState
       _touchNow[e.pointer] = e.localPosition;
     }
     if (down || up) _touchStart = Map.of(_touchNow);
+    if (up) _pendingMobileZoom = null;
+  }
+
+  void _queueMobileZoom(ScaleUpdateDetails d) {
+    final previous = _pendingMobileZoom;
+    // Once a finger has lifted, the other one alone neither zooms nor pans.
+    _pendingMobileZoom = d.pointerCount == 2 ? d : null;
+    if (previous == null || _pendingMobileZoom == null) return;
+    ffi.canvasModel.updateScale(previous.scale / _scale, previous.focalPoint);
+    _scale = previous.scale;
+    ffi.canvasModel.panX(previous.focalPointDelta.dx);
+    ffi.canvasModel.panY(previous.focalPointDelta.dy);
   }
 
   bool isNotTouchBasedDevice() {
@@ -476,6 +491,7 @@ class _RawTouchGestureDetectorRegionState
     _twoFingerGesture = TwoFingerGesture.undecided;
     _twoFingerTravel = Offset.zero;
     _twoFingerScrollIntegral = 0;
+    _pendingMobileZoom = null;
     if (isNotTouchBasedDevice()) {
       return;
     }
@@ -517,10 +533,7 @@ class _RawTouchGestureDetectorRegionState
       }
     } else {
       // mobile
-      ffi.canvasModel.updateScale(d.scale / _scale, d.focalPoint);
-      _scale = d.scale;
-      ffi.canvasModel.panX(d.focalPointDelta.dx);
-      ffi.canvasModel.panY(d.focalPointDelta.dy);
+      _queueMobileZoom(d);
     }
   }
 
@@ -537,6 +550,7 @@ class _RawTouchGestureDetectorRegionState
     } else {
       // mobile
       _scale = 1;
+      _pendingMobileZoom = null;
       // No idea why we need to set the view style to "" here.
       // bind.sessionSetViewStyle(sessionId: sessionId, value: "");
     }
