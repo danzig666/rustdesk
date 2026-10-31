@@ -1,4 +1,4 @@
-use base::config::keys::OPTION_EXTRA_RENDEZVOUS_SERVERS;
+use base::config::keys::{OPTION_EXTRA_RENDEZVOUS_OUTGOING, OPTION_EXTRA_RENDEZVOUS_SERVERS};
 use hbb_common::{
     config::{Config, RENDEZVOUS_PORT, RENDEZVOUS_SERVERS, RS_PUB_KEY},
     log,
@@ -39,11 +39,31 @@ pub fn get_rendezvous_targets() -> Vec<RendezvousTarget> {
 
 /// `(server, key)` pairs for the extra servers, with `public` kept literal so the
 /// viewer can hand it to `other_server` unchanged.
-pub fn parse_extra_rendezvous_servers() -> Vec<(String, String)> {
+fn parse_extra_rendezvous_servers() -> Vec<(String, String)> {
     parse(
         &Config::get_option(OPTION_EXTRA_RENDEZVOUS_SERVERS),
         &Config::get_rendezvous_servers(),
     )
+}
+
+/// The servers the viewer falls back to: `extra-rendezvous-outgoing` when set,
+/// none for `none`, else the same list the device registers on.
+pub fn parse_outgoing_rendezvous_servers() -> Vec<(String, String)> {
+    parse(
+        outgoing_option(
+            &Config::get_option(OPTION_EXTRA_RENDEZVOUS_OUTGOING),
+            &Config::get_option(OPTION_EXTRA_RENDEZVOUS_SERVERS),
+        ),
+        &Config::get_rendezvous_servers(),
+    )
+}
+
+fn outgoing_option<'a>(outgoing: &'a str, extra: &'a str) -> &'a str {
+    match outgoing.trim() {
+        "" => extra,
+        s if s.eq_ignore_ascii_case("none") => "",
+        _ => outgoing,
+    }
 }
 
 pub fn server_host(server: &str) -> String {
@@ -115,5 +135,15 @@ mod tests {
         assert_eq!(got, vec![(PUBLIC_SERVER.to_owned(), RS_PUB_KEY.to_owned())]);
         let got = parse("public", &[RENDEZVOUS_SERVERS[0].to_owned()]);
         assert!(got.is_empty());
+    }
+
+    #[test]
+    fn outgoing_list_defaults_to_extra_and_can_be_turned_off() {
+        assert_eq!(outgoing_option("", "public"), "public");
+        assert_eq!(outgoing_option(" NONE ", "public"), "");
+        assert_eq!(
+            outgoing_option("b.example.com?key=k", ""),
+            "b.example.com?key=k"
+        );
     }
 }

@@ -414,7 +414,7 @@ impl Client {
     }
 
     /// `_start` on the primary server, then, if the peer is unknown, offline or the server
-    /// unreachable there, the same ID through each `extra-rendezvous-servers` entry.
+    /// unreachable there, the same ID through each `extra-rendezvous-outgoing` entry.
     /// An explicit `ID@server` pins one server and skips the fallback.
     async fn _start_with_fallback(
         peer: &str,
@@ -448,7 +448,7 @@ impl Client {
             Err(e) if !pinned && is_fallback_error(&e) => e,
             other => return other,
         };
-        let extras = crate::rendezvous_targets::parse_extra_rendezvous_servers();
+        let extras = crate::rendezvous_targets::parse_outgoing_rendezvous_servers();
         if extras.is_empty() {
             return Err(first_err);
         }
@@ -5399,7 +5399,7 @@ pub mod peer_online {
         timeout: std::time::Duration,
     ) -> ResultType<(Vec<String>, Vec<String>)> {
         let (mut onlines, mut offlines) = query_online_states_(ids, timeout, None).await?;
-        for (server, _) in crate::rendezvous_targets::parse_extra_rendezvous_servers() {
+        for (server, _) in crate::rendezvous_targets::parse_outgoing_rendezvous_servers() {
             if offlines.is_empty() {
                 break;
             }

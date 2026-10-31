@@ -77,6 +77,7 @@ pub const OPTION_CUSTOM_RENDEZVOUS_SERVER: &str = "custom-rendezvous-server";
 pub const OPTION_API_SERVER: &str = "api-server";
 pub const OPTION_KEY: &str = "key";
 pub const OPTION_EXTRA_RENDEZVOUS_SERVERS: &str = "extra-rendezvous-servers";
+pub const OPTION_EXTRA_RENDEZVOUS_OUTGOING: &str = "extra-rendezvous-outgoing";
 pub const OPTION_PRESET_ADDRESS_BOOK_NAME: &str = "preset-address-book-name";
 pub const OPTION_PRESET_ADDRESS_BOOK_TAG: &str = "preset-address-book-tag";
 pub const OPTION_PRESET_ADDRESS_BOOK_ALIAS: &str = "preset-address-book-alias";
@@ -335,6 +336,7 @@ pub const KEYS_SETTINGS: &[&str] = &[
     OPTION_ALLOW_KCP_CC,
     OPTION_ALLOW_WEBRTC_CC,
     OPTION_EXTRA_RENDEZVOUS_SERVERS,
+    OPTION_EXTRA_RENDEZVOUS_OUTGOING,
 ];
 
 // BUILDIN_SETTINGS
