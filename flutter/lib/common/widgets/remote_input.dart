@@ -12,6 +12,7 @@ import 'package:flutter_hbb/models/model.dart';
 import 'package:flutter_hbb/models/input_model.dart';
 
 import './gestures.dart';
+import './two_finger_gesture.dart';
 
 class RawKeyFocusScope extends StatelessWidget {
   final FocusNode? focusNode;
@@ -92,6 +93,9 @@ class _RawTouchGestureDetectorRegionState
   int _cacheLongPressPositionTs = 0;
   double _mouseScrollIntegral = 0; // mouse scroll speed controller
   double _scale = 1;
+  TwoFingerGesture _twoFingerGesture = TwoFingerGesture.undecided;
+  Offset _twoFingerTravel = Offset.zero;
+  double _twoFingerScrollIntegral = 0;
 
   // Workaround tap down event when two fingers are used to scale(mobile)
   TapDownDetails? _lastTapDownDetails;
@@ -449,6 +453,9 @@ class _RawTouchGestureDetectorRegionState
   // scale + pan event
   onTwoFingerScaleStart(ScaleStartDetails d) {
     _lastTapDownDetails = null;
+    _twoFingerGesture = TwoFingerGesture.undecided;
+    _twoFingerTravel = Offset.zero;
+    _twoFingerScrollIntegral = 0;
     if (isNotTouchBasedDevice()) {
       return;
     }
@@ -471,6 +478,8 @@ class _RawTouchGestureDetectorRegionState
       await ffi.cursorModel.updatePan(delta * 2.0, d.focalPoint, handleTouch);
       return;
     }
+
+    if (isMobile && await _twoFingerScrollUpdate(d)) return;
 
     if (canvasLocked) return;
 
@@ -514,6 +523,31 @@ class _RawTouchGestureDetectorRegionState
     if (!isSpecialHoldDragActive) {
       await inputModel.sendMouse('up', MouseButtons.left);
     }
+  }
+
+  /// Phones and tablets: a two-finger drag without pinching scrolls the remote.
+  /// Returns true when this update was consumed (decided as scroll, or not yet
+  /// decided); a pinch falls through to the zoom handling below.
+  Future<bool> _twoFingerScrollUpdate(ScaleUpdateDetails d) async {
+    // Android peers take no wheel input, as for the three-finger scroll.
+    if (ffi.ffiModel.isPeerAndroid || widget.isCamera) return false;
+    if (_twoFingerGesture == TwoFingerGesture.undecided) {
+      _twoFingerTravel += d.focalPointDelta;
+      _twoFingerGesture = classifyTwoFingerGesture(d.scale, _twoFingerTravel);
+      if (_twoFingerGesture == TwoFingerGesture.undecided) return true;
+    }
+    if (_twoFingerGesture != TwoFingerGesture.scroll) return false;
+    _twoFingerScrollIntegral +=
+        d.focalPointDelta.dy / kTwoFingerScrollPixelsPerStep;
+    while (_twoFingerScrollIntegral >= 1) {
+      await inputModel.scroll(1);
+      _twoFingerScrollIntegral -= 1;
+    }
+    while (_twoFingerScrollIntegral <= -1) {
+      await inputModel.scroll(-1);
+      _twoFingerScrollIntegral += 1;
+    }
+    return true;
   }
 
   get onHoldDragCancel => null;
