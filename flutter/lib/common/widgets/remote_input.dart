@@ -559,6 +559,8 @@ class _RawTouchGestureDetectorRegionState
               _touchStart[ids[1]]!, _touchNow[ids[0]]!, _touchNow[ids[1]]!)
           : classifyTwoFingerGesture(d.scale, _twoFingerTravel);
       if (_twoFingerGesture == TwoFingerGesture.undecided) return true;
+      // Zoom from here on, not by the pinch spent deciding (that would jump).
+      if (_twoFingerGesture == TwoFingerGesture.zoom) _scale = d.scale;
       // The remote scrolls whatever is under its cursor: in touch mode put it
       // under the fingers, else it stays wherever the last tap left it.
       if (_twoFingerGesture == TwoFingerGesture.scroll && handleTouch) {
