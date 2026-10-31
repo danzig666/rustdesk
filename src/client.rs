@@ -388,7 +388,7 @@ impl Client {
         debug_assert!(peer == interface.get_id());
         interface.update_direct(None);
         interface.update_received(false);
-        match Self::_start(peer, key, token, conn_type, interface.clone()).await {
+        match Self::_start_with_fallback(peer, key, token, conn_type, interface.clone()).await {
             Err(err) => {
                 let err_str = err.to_string();
                 if err_str.starts_with("Failed") {
@@ -411,6 +411,60 @@ impl Client {
                 Ok((x.0, x.1))
             }
         }
+    }
+
+    /// `_start` on the primary server, then, if the peer is unknown, offline or the server
+    /// unreachable there, the same ID through each `extra-rendezvous-servers` entry.
+    /// An explicit `ID@server` pins one server and skips the fallback.
+    async fn _start_with_fallback(
+        peer: &str,
+        key: &str,
+        token: &str,
+        conn_type: ConnType,
+        interface: impl Interface,
+    ) -> ResultType<(
+        (
+            Stream,
+            bool,
+            Option<Vec<u8>>,
+            Option<KcpStream>,
+            &'static str,
+        ),
+        (i32, String),
+        bool,
+    )> {
+        let pinned = interface.get_lch().read().unwrap().other_server.is_some()
+            || hbb_common::is_ip_str(peer)
+            || hbb_common::is_domain_port_str(peer);
+        let mut res = Self::_start(peer, key, token, conn_type, interface.clone()).await;
+        let is_fallback_error = |e: &hbb_common::anyhow::Error| {
+            let s = e.to_string();
+            s.contains("ID does not exist")
+                || s.contains("Remote desktop is offline")
+                || s.starts_with("Failed to connect to rendezvous server")
+                || s.starts_with("Failed to connect via rendezvous server")
+        };
+        let first_err = match res {
+            Err(e) if !pinned && is_fallback_error(&e) => e,
+            other => return other,
+        };
+        let extras = crate::rendezvous_targets::parse_extra_rendezvous_servers();
+        if extras.is_empty() {
+            return Err(first_err);
+        }
+        for (server, srv_key) in extras {
+            log::info!("{peer} failed on the primary server ({first_err}), trying {server}");
+            interface.get_lch().write().unwrap().other_server =
+                Some((peer.to_owned(), server, srv_key));
+            res = Self::_start(peer, key, token, conn_type, interface.clone()).await;
+            match &res {
+                // Keep other_server: reconnects of this session take the same path.
+                Ok(_) => return res,
+                Err(e) => log::info!("{peer} failed on the extra server too: {e}"),
+            }
+        }
+        interface.get_lch().write().unwrap().other_server = None;
+        Err(first_err)
     }
 
     /// Start a new connection.
@@ -5310,7 +5364,7 @@ async fn hc_connection_(
 pub mod peer_online {
     use hbb_common::{
         anyhow::bail,
-        config::{Config, CONNECT_TIMEOUT, READ_TIMEOUT},
+        config::{Config, CONNECT_TIMEOUT, READ_TIMEOUT, RENDEZVOUS_PORT},
         log,
         rendezvous_proto::*,
         sleep,
@@ -5327,7 +5381,7 @@ pub mod peer_online {
             f(onlines, offlines)
         } else {
             let query_timeout = std::time::Duration::from_millis(3_000);
-            match query_online_states_(&ids, query_timeout).await {
+            match query_online_states_all(&ids, query_timeout).await {
                 Ok((onlines, offlines)) => {
                     f(onlines, offlines);
                 }
@@ -5338,9 +5392,37 @@ pub mod peer_online {
         }
     }
 
-    async fn create_online_stream() -> ResultType<Stream> {
-        let (rendezvous_server, _servers, _contained) =
-            crate::get_rendezvous_server(READ_TIMEOUT).await;
+    // Extra servers are asked only about the IDs the primary reports offline, so the
+    // public server does not see the whole address book on every refresh.
+    async fn query_online_states_all(
+        ids: &Vec<String>,
+        timeout: std::time::Duration,
+    ) -> ResultType<(Vec<String>, Vec<String>)> {
+        let (mut onlines, mut offlines) = query_online_states_(ids, timeout, None).await?;
+        for (server, _) in crate::rendezvous_targets::parse_extra_rendezvous_servers() {
+            if offlines.is_empty() {
+                break;
+            }
+            let host = crate::check_port(
+                crate::rendezvous_targets::server_host(&server),
+                RENDEZVOUS_PORT,
+            );
+            match query_online_states_(&offlines, timeout, Some(host)).await {
+                Ok((on, off)) => {
+                    onlines.extend(on);
+                    offlines = off;
+                }
+                Err(e) => log::trace!("query onlines on {server}, {e}"),
+            }
+        }
+        Ok((onlines, offlines))
+    }
+
+    async fn create_online_stream(server: Option<String>) -> ResultType<Stream> {
+        let rendezvous_server = match server {
+            Some(server) => server,
+            None => crate::get_rendezvous_server(READ_TIMEOUT).await.0,
+        };
         let tmp: Vec<&str> = rendezvous_server.split(":").collect();
         if tmp.len() != 2 {
             bail!("Invalid server address: {}", rendezvous_server);
@@ -5356,6 +5438,7 @@ pub mod peer_online {
     async fn query_online_states_(
         ids: &Vec<String>,
         timeout: std::time::Duration,
+        server: Option<String>,
     ) -> ResultType<(Vec<String>, Vec<String>)> {
         let mut msg_out = RendezvousMessage::new();
         msg_out.set_online_request(OnlineRequest {
@@ -5364,7 +5447,7 @@ pub mod peer_online {
             ..Default::default()
         });
 
-        let mut socket = match create_online_stream().await {
+        let mut socket = match create_online_stream(server).await {
             Ok(s) => s,
             Err(e) => {
                 log::debug!("Failed to create peers online stream, {e}");

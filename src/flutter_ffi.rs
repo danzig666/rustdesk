@@ -1068,6 +1068,7 @@ pub fn main_set_option(key: String, value: String) -> hbb_common::anyhow::Result
     let is_allow_tls_fallback = key.eq(keys::OPTION_ALLOW_INSECURE_TLS_FALLBACK);
     if is_allow_tls_fallback
         || key.eq("custom-rendezvous-server")
+        || key.eq(keys::OPTION_EXTRA_RENDEZVOUS_SERVERS)
         || key.eq(keys::OPTION_ALLOW_WEBSOCKET)
         || key.eq(keys::OPTION_DISABLE_UDP)
         || key.eq("api-server")

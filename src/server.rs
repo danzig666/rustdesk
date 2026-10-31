@@ -374,6 +374,7 @@ pub async fn create_relay_connection(
     secure: bool,
     ipv4: bool,
     meta: ConnectionMeta,
+    licence_key: String,
 ) {
     if let Err(err) = create_relay_connection_(
         server,
@@ -383,6 +384,7 @@ pub async fn create_relay_connection(
         secure,
         ipv4,
         meta,
+        licence_key,
     )
     .await
     {
@@ -403,6 +405,7 @@ async fn create_relay_connection_(
     secure: bool,
     ipv4: bool,
     meta: ConnectionMeta,
+    licence_key: String,
 ) -> ResultType<()> {
     // The proxy's address family does not constrain the relay target.
     let relay_server = crate::check_port(relay_server, RELAY_PORT);
@@ -413,7 +416,6 @@ async fn create_relay_connection_(
     )
     .await?;
     let mut msg_out = RendezvousMessage::new();
-    let licence_key = crate::get_key(true).await;
     msg_out.set_request_relay(RequestRelay {
         licence_key,
         uuid,
