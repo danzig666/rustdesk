@@ -96,6 +96,10 @@ class _RawTouchGestureDetectorRegionState
   TwoFingerGesture _twoFingerGesture = TwoFingerGesture.undecided;
   Offset _twoFingerTravel = Offset.zero;
   double _twoFingerScrollIntegral = 0;
+  // Touch positions by pointer, and where each was when the set of fingers on
+  // the screen last changed; the two-finger classifier compares the two.
+  final Map<int, Offset> _touchNow = {};
+  Map<int, Offset> _touchStart = {};
 
   // Workaround tap down event when two fingers are used to scale(mobile)
   TapDownDetails? _lastTapDownDetails;
@@ -123,10 +127,26 @@ class _RawTouchGestureDetectorRegionState
 
   @override
   Widget build(BuildContext context) {
-    return RawGestureDetector(
-      child: widget.child,
-      gestures: makeGestures(context),
+    return Listener(
+      onPointerDown: (e) => _trackTouch(e, down: true),
+      onPointerMove: (e) => _trackTouch(e),
+      onPointerUp: (e) => _trackTouch(e, up: true),
+      onPointerCancel: (e) => _trackTouch(e, up: true),
+      child: RawGestureDetector(
+        child: widget.child,
+        gestures: makeGestures(context),
+      ),
     );
+  }
+
+  void _trackTouch(PointerEvent e, {bool down = false, bool up = false}) {
+    if (e.kind != PointerDeviceKind.touch) return;
+    if (up) {
+      _touchNow.remove(e.pointer);
+    } else {
+      _touchNow[e.pointer] = e.localPosition;
+    }
+    if (down || up) _touchStart = Map.of(_touchNow);
   }
 
   bool isNotTouchBasedDevice() {
@@ -533,7 +553,11 @@ class _RawTouchGestureDetectorRegionState
     if (ffi.ffiModel.isPeerAndroid || widget.isCamera) return false;
     if (_twoFingerGesture == TwoFingerGesture.undecided) {
       _twoFingerTravel += d.focalPointDelta;
-      _twoFingerGesture = classifyTwoFingerGesture(d.scale, _twoFingerTravel);
+      final ids = _touchNow.keys.where(_touchStart.containsKey).toList();
+      _twoFingerGesture = ids.length == 2 && _touchNow.length == 2
+          ? classifyTwoFingerMovement(_touchStart[ids[0]]!,
+              _touchStart[ids[1]]!, _touchNow[ids[0]]!, _touchNow[ids[1]]!)
+          : classifyTwoFingerGesture(d.scale, _twoFingerTravel);
       if (_twoFingerGesture == TwoFingerGesture.undecided) return true;
       // The remote scrolls whatever is under its cursor: in touch mode put it
       // under the fingers, else it stays wherever the last tap left it.
