@@ -185,7 +185,7 @@ jobs:
               # no NV/Intel/AMD hardware exists on Windows-on-ARM, so vram stays disabled here.
               build-args: "",
             }
-        exclude: ${{ fromJSON((inputs.platforms != '' && !contains(inputs.platforms, 'windows-x64')) && '[{"job":{"target":"x86_64-pc-windows-msvc","os":"windows-2022","arch":"x86_64","flutter-arch":"x64","vcpkg-triplet":"x64-windows-static","build-args":"--vram"}}]' || ((inputs.platforms != '' && !contains(inputs.platforms, 'windows-arm64')) && '[{"job":{"target":"aarch64-pc-windows-msvc","os":"windows-11-arm","arch":"aarch64","flutter-arch":"arm64","vcpkg-triplet":"arm64-windows-static","build-args":""}}]' || '[]')) }}
+        exclude: ${{ fromJSON((inputs.platforms != '' && !contains(inputs.platforms, 'windows-x64')) && '[{"job":{"target":"x86_64-pc-windows-msvc","os":"windows-2022","arch":"x86_64","flutter-arch":"x64","vcpkg-triplet":"x64-windows-static","build-args":"--vram" } }]' || ((inputs.platforms != '' && !contains(inputs.platforms, 'windows-arm64')) && '[{"job":{"target":"aarch64-pc-windows-msvc","os":"windows-11-arm","arch":"aarch64","flutter-arch":"arm64","vcpkg-triplet":"arm64-windows-static","build-args":"" } }]' || '[]')) }}
     steps:
       - name: Export GitHub Actions cache environment variables
         uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
