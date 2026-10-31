@@ -47,6 +47,14 @@ class ExtraServerStatus {
   String get name =>
       isPublic ? translate('Public server') : server.replaceAll(':21116', '');
 
+  /// For the status bar, where space is short: "Public" or the host's first label.
+  String get shortName {
+    if (isPublic) return translate('Public');
+    final host = name.split(':').first;
+    final isIp = RegExp(r'^[0-9.]+$').hasMatch(host) || host.contains('[');
+    return isIp ? host : host.split('.').first;
+  }
+
   Color get color {
     switch (state) {
       case 'online':
@@ -90,6 +98,7 @@ Widget extraServerDot(Color color, {double size = 8}) => Container(
 Widget extraServersStatusBar(List<ExtraServerStatus> servers, double fontSize) {
   if (servers.isEmpty) return const SizedBox.shrink();
   return Flexible(
+    flex: 4,
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -103,7 +112,7 @@ Widget extraServersStatusBar(List<ExtraServerStatus> servers, double fontSize) {
                   children: [
                     extraServerDot(s.color, size: 7).marginOnly(right: 4),
                     Flexible(
-                      child: Text(s.name,
+                      child: Text(s.shortName,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: fontSize)),
                     ),
@@ -302,29 +311,24 @@ class ExtraServersSection extends StatelessWidget {
         if (canLookUp) ...[
           _label('Look up IDs on extra servers when connecting'),
           _tip(context, 'extra_outgoing_tip'),
-          Obx(() => DropdownButton<ExtraOutgoingMode>(
-                isExpanded: true,
-                value: config.outgoingMode.value,
+          ...[
+            (
+              ExtraOutgoingMode.same,
+              canRegister ? 'Same servers as above' : 'Default'
+            ),
+            (ExtraOutgoingMode.off, 'Off'),
+            (ExtraOutgoingMode.custom, 'Custom list'),
+          ].map((e) => Obx(() => RadioListTile<ExtraOutgoingMode>(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                visualDensity: VisualDensity.compact,
+                value: e.$1,
+                groupValue: config.outgoingMode.value,
                 onChanged: (v) {
                   if (v != null) config.outgoingMode.value = v;
                 },
-                items: [
-                  if (canRegister)
-                    DropdownMenuItem(
-                        value: ExtraOutgoingMode.same,
-                        child: Text(translate('Same servers as above'))),
-                  if (!canRegister)
-                    DropdownMenuItem(
-                        value: ExtraOutgoingMode.same,
-                        child: Text(translate('Default'))),
-                  DropdownMenuItem(
-                      value: ExtraOutgoingMode.off,
-                      child: Text(translate('Off'))),
-                  DropdownMenuItem(
-                      value: ExtraOutgoingMode.custom,
-                      child: Text(translate('Custom list'))),
-                ],
-              )),
+                title: Text(translate(e.$2)),
+              ))),
           Obx(() => Offstage(
                 offstage: config.outgoingMode.value != ExtraOutgoingMode.custom,
                 child: TextField(

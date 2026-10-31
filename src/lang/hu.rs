@@ -844,5 +844,6 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Also on", "Emellett"),
         ("Connected through the public RustDesk server", "Kapcsolódva a nyilvános RustDesk kiszolgálón keresztül"),
         ("Connected through {}", "Kapcsolódva ezen keresztül: {}"),
+        ("Public", "Nyilvános"),
     ].iter().cloned().collect();
 }

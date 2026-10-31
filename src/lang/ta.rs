@@ -844,5 +844,6 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Also on", ""),
         ("Connected through the public RustDesk server", ""),
         ("Connected through {}", ""),
+        ("Public", ""),
     ].iter().cloned().collect();
 }
