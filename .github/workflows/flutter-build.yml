@@ -1509,6 +1509,25 @@ jobs:
           tag_name: ${{ env.TAG_NAME }}
           files: rustdesk-${{ env.VERSION }}-unsigned.tar.gz
 
+  # Fork: run with platforms "release-notes" to point the release tag at this commit
+  # and set its description (otherwise GitHub shows the tag commit's message).
+  update-release-notes:
+    if: ${{ contains(inputs.platforms, 'release-notes') }}
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Move tag and set release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG_NAME}" \
+            -f sha="${GITHUB_SHA}" -F force=true > /dev/null
+          gh release edit "${TAG_NAME}" --notes "RustDesk Dual builds: Windows x64 (.exe / .msi) and Android. For Android use the files ending in -signed.apk."
+          gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG_NAME}" --jq .object.sha
+
   # Fork: opens the Android signing keystore with the secrets in about a minute, so a
   # wrong secret shows up at once instead of at the end of the APK build. Run it alone
   # with platforms "signing-check".
