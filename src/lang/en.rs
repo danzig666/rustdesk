@@ -296,5 +296,6 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("extra_id_servers_other_tip", "Optional. Comma-separated, each written as host:port?key=KEY"),
         ("extra_outgoing_tip", "If a device is not found on your main ID server, it is looked up on these servers before giving up."),
         ("extra_outgoing_custom_tip", "Comma-separated: public, or host:port?key=KEY"),
+        ("install-directory-not-empty-tip", "The selected folder is not empty. Installation may delete existing data. Consider choosing a different folder."),
     ].iter().cloned().collect();
 }
