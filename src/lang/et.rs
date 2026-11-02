@@ -845,5 +845,6 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Connected through the public RustDesk server", ""),
         ("Connected through {}", ""),
         ("Public", ""),
+        ("install-directory-not-empty-tip", "Valitud kaust ei ole tühi. Paigaldamine võib olemasolevad andmed kustutada. Kaalu teise kausta valimist."),
     ].iter().cloned().collect();
 }

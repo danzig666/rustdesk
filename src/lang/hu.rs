@@ -845,5 +845,6 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Connected through the public RustDesk server", "Kapcsolódva a nyilvános RustDesk kiszolgálón keresztül"),
         ("Connected through {}", "Kapcsolódva ezen keresztül: {}"),
         ("Public", "Nyilvános"),
+        ("install-directory-not-empty-tip", "A kiválasztott mappa nem üres. A telepítés törölheti a meglévő adatokat. Fontolja meg egy másik mappa kiválasztását."),
     ].iter().cloned().collect();
 }

@@ -845,5 +845,6 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Connected through the public RustDesk server", ""),
         ("Connected through {}", ""),
         ("Public", ""),
+        ("install-directory-not-empty-tip", "Vybraný priečinok nie je prázdny. Inštalácia môže odstrániť existujúce údaje. Zvážte výber iného priečinka."),
     ].iter().cloned().collect();
 }
