@@ -678,7 +678,7 @@ jobs:
               --release-base-url "$base"
             gh release create "$tag" "$out"/* --target "$GITHUB_SHA" \
               --title "Fork build ${GITHUB_RUN_ID} (Windows ${arch})" \
-              --notes "Signed automatic update for installed copies of this fork."
+              --notes "Signed automatic update for installed copies of this fork. Installers, including Android, are in https://github.com/${GITHUB_REPOSITORY}/releases/tag/dual-server-nightly"
           done
 
   # The fallback for the flutter version, we use Sciter for 32bit Windows.

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       platforms:
-        description: "Only build these (comma-separated: windows-x64, windows-arm64, android); empty builds all"
+        description: "Only build these (comma-separated: windows-x64, windows-arm64, android); empty builds windows-x64,android"
         type: string
         default: ""
 
@@ -47,5 +47,5 @@ jobs:
     secrets: inherit
     with:
       upload-artifact: true
-      upload-tag: "nightly"
-      platforms: ${{ inputs.platforms || '' }}
+      upload-tag: "dual-server-nightly"
+      platforms: ${{ inputs.platforms || 'windows-x64,android' }}
