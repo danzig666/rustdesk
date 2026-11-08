@@ -846,5 +846,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Connected through {}", ""),
         ("Public", ""),
         ("install-directory-not-empty-tip", "La cartella selezionata non è vuota. L'installazione potrebbe eliminare i dati esistenti. Valuta la possibilità di scegliere una cartella diversa."),
+        ("Request approval", "Richiedi approvazione"),
+        ("Forever", "Per sempre"),
     ].iter().cloned().collect();
 }
