@@ -2004,6 +2004,8 @@ mod tests {
             host: host.to_string(),
             host_prefix: String::new(),
             keep_alive: 0,
+            key: String::new(),
+            primary: true,
         };
         let now = Instant::now();
         super::remember_reported_relay("reported-relay.example", now);
