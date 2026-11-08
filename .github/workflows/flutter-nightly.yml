@@ -49,3 +49,4 @@ jobs:
       upload-artifact: true
       upload-tag: "dual-server-nightly"
       platforms: ${{ inputs.platforms || 'windows-x64,android' }}
+      publish-update-metadata: ${{ github.repository == 'rustdesk/rustdesk' }}
