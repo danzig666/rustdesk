@@ -180,8 +180,8 @@ pub fn get_update_download_file_from_url(url: &str) -> Option<PathBuf> {
     let tag = segments.next()?;
     let filename = segments.next()?;
 
-    if owner != "rustdesk"
-        || repo != "rustdesk"
+    if !(owner == "rustdesk" && repo == "rustdesk"
+        || crate::fork_update::is_update_repo(owner, repo))
         || releases != "releases"
         || download != "download"
         || tag.is_empty()
