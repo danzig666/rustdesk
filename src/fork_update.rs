@@ -49,6 +49,11 @@ fn build_of_tag(tag: &str, suffix: &str) -> Option<u64> {
         .ok()
 }
 
+/// Whether downloads from `github.com/<owner>/<repo>` are this fork's updates.
+pub(crate) fn is_update_repo(owner: &str, repo_name: &str) -> bool {
+    ENABLED && repo() == format!("{owner}/{repo_name}")
+}
+
 fn release_page_prefix() -> String {
     format!("https://github.com/{}/releases/tag/", repo())
 }
@@ -188,6 +193,20 @@ mod tests {
             Some("fork-build-200-windows-x86_64")
         );
         assert_eq!(newest_update_tag(releases, 200, SUFFIX).unwrap(), None);
+    }
+
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    #[test]
+    fn update_downloads_from_this_fork_are_accepted() {
+        let url = format!(
+            "https://github.com/{}/releases/download/fork-build-7{SUFFIX}/rustdesk-1.5.1-x86_64.exe",
+            repo()
+        );
+        assert!(crate::updater::get_update_download_file_from_url(&url).is_some());
+        assert!(crate::updater::get_update_download_file_from_url(
+            "https://github.com/someone/else/releases/download/fork-build-7-windows-x86_64/rustdesk.exe"
+        )
+        .is_none());
     }
 
     #[test]
