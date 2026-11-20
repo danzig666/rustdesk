@@ -851,7 +851,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("username-login-disabled-oidc-unavailable", "ഉപയോക്തൃനാമവും പാസ്‌വേഡും ഉപയോഗിച്ചുള്ള ലോഗിൻ പ്രവർത്തനരഹിതമാക്കിയിരിക്കുന്നു, കൂടാതെ OIDC ലോഗിൻ രീതികളൊന്നും ലഭ്യമല്ല."),
         ("Public server sign-in", ""),
         ("public_account_tip", ""),
-        ("Signed in as {}", ""),
+        ("Signed in to the public server as {}", ""),
         ("Finish signing in in your browser", ""),
     ].iter().cloned().collect();
 }

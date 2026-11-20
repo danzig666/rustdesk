@@ -442,7 +442,7 @@ class _PublicAccountTileState extends State<PublicAccountTile> {
       return Row(children: [
         extraServerDot(_kColorOnline).marginOnly(right: 8),
         Expanded(
-          child: Text(translate('Signed in as {$_user}'),
+          child: Text(translate('Signed in to the public server as {$_user}'),
               overflow: TextOverflow.ellipsis),
         ),
         TextButton(onPressed: _signOut, child: Text(translate('Logout'))),
