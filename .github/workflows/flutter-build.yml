@@ -632,6 +632,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Install Python
         if: env.HAS_SEED == 'true' && env.FORK_UPDATE_PUBLIC_KEY != ''
@@ -662,6 +663,24 @@ jobs:
         run: |
           set -euo pipefail
           base="https://github.com/${GITHUB_REPOSITORY}/releases/download"
+          prev=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=50" --jq \
+            "[.[] | .tag_name | select(startswith(\"fork-build-\") and (startswith(\"fork-build-${GITHUB_RUN_ID}-\") | not))][0] // empty")
+          {
+            echo "## Changes"
+            echo
+            if [ -n "$prev" ]; then
+              prev_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${prev}" --jq .sha)
+              git log --first-parent --format='- %s' "${prev_sha}..${GITHUB_SHA}" | grep -v '^- CI:' || echo "- Rebuild, no app changes"
+            else
+              echo "- First signed build"
+            fi
+          } > changes.md
+          if [ "$TAG_NAME" = "dual-server-nightly" ] && gh release view "$TAG_NAME" > /dev/null 2>&1; then
+            { cat changes.md; echo
+              echo "RustDesk Dual builds: Windows x64 (.exe / .msi) and Android. For Android use the files ending in -signed.apk."
+            } > nightly-notes.md
+            gh release edit "$TAG_NAME" --notes-file nightly-notes.md
+          fi
           for exe in ./fork-update/rustdesk-${VERSION}-*.exe; do
             arch="${exe##*/rustdesk-${VERSION}-}"; arch="${arch%.exe}"
             msi="./fork-update/rustdesk-${VERSION}-${arch}.msi"
@@ -684,7 +703,7 @@ jobs:
               --release-base-url "$base"
             gh release create "$tag" "$out"/* --target "$GITHUB_SHA" \
               --title "Fork build ${GITHUB_RUN_ID} (Windows ${arch})" \
-              --notes "Signed automatic update for installed copies of this fork. Installers, including Android, are in https://github.com/${GITHUB_REPOSITORY}/releases/tag/dual-server-nightly"
+              --notes "$(cat changes.md; echo; echo "Signed automatic update for installed copies of this fork. Installers, including Android, are in https://github.com/${GITHUB_REPOSITORY}/releases/tag/dual-server-nightly")"
           done
 
   # The fallback for the flutter version, we use Sciter for 32bit Windows.
