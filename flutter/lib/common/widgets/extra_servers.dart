@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../common.dart';
 import '../../consts.dart';
@@ -340,7 +342,145 @@ class ExtraServersSection extends StatelessWidget {
                       helper: translate('extra_outgoing_custom_tip')),
                 ).marginOnly(top: 4),
               )),
+          _label('Public server sign-in'),
+          _tip(context, 'public_account_tip'),
+          const PublicAccountTile(),
         ],
+      ],
+    );
+  }
+}
+
+/// Sign-in to the public server's account service, separate from the main
+/// account: sent only when connecting through the public server.
+class PublicAccountTile extends StatefulWidget {
+  const PublicAccountTile({Key? key}) : super(key: key);
+
+  @override
+  State<PublicAccountTile> createState() => _PublicAccountTileState();
+}
+
+class _PublicAccountTileState extends State<PublicAccountTile> {
+  static const _providers = [
+    ('google', 'Google'),
+    ('github', 'GitHub'),
+    ('microsoft', 'Microsoft'),
+  ];
+
+  String _user = bind.mainGetPublicAccount();
+  bool _waiting = false;
+  String _error = '';
+  String _openedUrl = '';
+  Timer? _timer;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    if (_waiting) bind.mainAccountAuthCancel();
+    super.dispose();
+  }
+
+  Future<void> _signIn(String op) async {
+    setState(() {
+      _waiting = true;
+      _error = '';
+      _openedUrl = '';
+    });
+    await bind.mainAccountAuthCancel();
+    await bind.mainPublicAccountAuth(op: op);
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _poll());
+  }
+
+  Future<void> _poll() async {
+    final Map<String, dynamic> r;
+    try {
+      r = jsonDecode(await bind.mainPublicAccountAuthResult());
+    } catch (_) {
+      return;
+    }
+    if (!mounted || !_waiting) return;
+    final url = (r['url'] ?? '').toString();
+    switch (r['state']) {
+      case 'signed-in':
+        _stop(user: (r['user'] ?? '').toString());
+        break;
+      case 'failed':
+        _stop(error: (r['error'] ?? '').toString());
+        break;
+      default:
+        if (url.isNotEmpty && url != _openedUrl) {
+          _openedUrl = url;
+          launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        }
+    }
+  }
+
+  void _stop({String? user, String error = ''}) {
+    _timer?.cancel();
+    setState(() {
+      _waiting = false;
+      _error = error;
+      if (user != null) _user = user;
+    });
+  }
+
+  Future<void> _cancel() async {
+    await bind.mainAccountAuthCancel();
+    if (mounted) _stop();
+  }
+
+  Future<void> _signOut() async {
+    await bind.mainPublicAccountLogout();
+    if (mounted) setState(() => _user = '');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall;
+    if (_user.isNotEmpty) {
+      return Row(children: [
+        extraServerDot(_kColorOnline).marginOnly(right: 8),
+        Expanded(
+          child: Text(translate('Signed in as {$_user}'),
+              overflow: TextOverflow.ellipsis),
+        ),
+        TextButton(onPressed: _signOut, child: Text(translate('Logout'))),
+      ]);
+    }
+    if (_waiting) {
+      return Row(children: [
+        const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2)),
+        Expanded(
+          child: Text(translate('Finish signing in in your browser'),
+                  style: style)
+              .marginOnly(left: 8),
+        ),
+        TextButton(onPressed: _cancel, child: Text(translate('Cancel'))),
+      ]);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: _providers
+              .map((p) => OutlinedButton.icon(
+                    onPressed: () => _signIn(p.$1),
+                    icon: SvgPicture.asset('assets/auth-${p.$1}.svg',
+                        width: 16, height: 16),
+                    label: Text(translate('Continue with {${p.$2}}')),
+                  ))
+              .toList(),
+        ),
+        if (_error.isNotEmpty)
+          Text(translate(_error),
+                  style: style?.copyWith(color: _kColorFailed))
+              .marginOnly(top: 4),
       ],
     );
   }

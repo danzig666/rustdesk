@@ -849,5 +849,9 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Request approval", "ขออนุมัติ"),
         ("Forever", "ตลอดไป"),
         ("username-login-disabled-oidc-unavailable", "การเข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่านถูกปิดใช้งาน และไม่มีวิธีเข้าสู่ระบบผ่าน OIDC ที่พร้อมใช้งาน"),
+        ("Public server sign-in", ""),
+        ("public_account_tip", ""),
+        ("Signed in as {}", ""),
+        ("Finish signing in in your browser", ""),
     ].iter().cloned().collect();
 }

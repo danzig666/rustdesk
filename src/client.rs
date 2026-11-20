@@ -536,8 +536,9 @@ impl Client {
         }
 
         let other_server = interface.get_lch().read().unwrap().other_server.clone();
+        let public_token = crate::public_account::token_for(other_server.as_ref());
         let (peer, other_server, key, token) = if let Some((a, b, c)) = other_server.as_ref() {
-            (a.as_ref(), b.as_ref(), c.as_ref(), "")
+            (a.as_ref(), b.as_ref(), c.as_ref(), public_token.as_str())
         } else {
             (peer, "", key, token)
         };

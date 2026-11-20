@@ -298,5 +298,6 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("extra_outgoing_custom_tip", "Comma-separated: public, or host:port?key=KEY"),
         ("install-directory-not-empty-tip", "The selected folder is not empty. Installation may delete existing data. Consider choosing a different folder."),
         ("username-login-disabled-oidc-unavailable", "Username and password login is disabled, and no OIDC login methods are available."),
+        ("public_account_tip", "The public RustDesk server only lets signed-in users connect. Sign in here with a free account; it is used only for connections through the public server."),
     ].iter().cloned().collect();
 }

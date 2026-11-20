@@ -2500,6 +2500,22 @@ pub fn main_account_auth_result() -> String {
     account_auth_result()
 }
 
+pub fn main_public_account_auth(op: String) {
+    crate::public_account::auth(op)
+}
+
+pub fn main_public_account_auth_result() -> String {
+    crate::public_account::auth_result()
+}
+
+pub fn main_public_account_logout() {
+    crate::public_account::logout()
+}
+
+pub fn main_get_public_account() -> SyncReturn<String> {
+    SyncReturn(crate::public_account::user())
+}
+
 pub fn main_on_main_window_close() {
     // may called more than one times
     #[cfg(windows)]
