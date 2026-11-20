@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/audio_input.dart';
+import 'package:flutter_hbb/common/widgets/extra_servers.dart';
 import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_home_page.dart';
@@ -2286,6 +2287,12 @@ class _AccountState extends State<_Account> {
       controller: scrollController,
       children: [
         _Card(title: 'Account', children: [accountAction(), useInfo()]),
+        _Card(title: 'Public server sign-in', children: [
+          Text(translate('public_account_tip'),
+                  style: Theme.of(context).textTheme.bodySmall)
+              .marginOnly(left: _kContentHMargin, bottom: 8),
+          const PublicAccountTile().marginOnly(left: _kContentHMargin),
+        ]),
       ],
     ).marginOnly(bottom: _kListViewBottomMargin);
   }

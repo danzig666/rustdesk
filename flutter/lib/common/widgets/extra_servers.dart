@@ -342,9 +342,6 @@ class ExtraServersSection extends StatelessWidget {
                       helper: translate('extra_outgoing_custom_tip')),
                 ).marginOnly(top: 4),
               )),
-          _label('Public server sign-in'),
-          _tip(context, 'public_account_tip'),
-          const PublicAccountTile(),
         ],
       ],
     );

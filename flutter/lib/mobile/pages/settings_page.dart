@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_hbb/common/widgets/extra_servers.dart';
 import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
 import 'package:get/get.dart';
@@ -762,6 +763,23 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                     logOutConfirmDialog();
                   }
                 },
+              ),
+            ],
+          ),
+        if (!bind.isDisableAccount())
+          SettingsSection(
+            title: Text(translate('Public server sign-in')),
+            tiles: [
+              CustomSettingsTile(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(translate('public_account_tip'),
+                            style: Theme.of(context).textTheme.bodySmall)
+                        .marginOnly(bottom: 8),
+                    const PublicAccountTile(),
+                  ],
+                ).paddingSymmetric(horizontal: 16, vertical: 8),
               ),
             ],
           ),
