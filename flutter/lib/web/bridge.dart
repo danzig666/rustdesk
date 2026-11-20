@@ -1658,6 +1658,22 @@ class RustdeskImpl {
         () => js.context.callMethod('getByName', ['account_auth_result']));
   }
 
+  Future<void> mainPublicAccountAuth({required String op, dynamic hint}) {
+    throw UnimplementedError("mainPublicAccountAuth");
+  }
+
+  Future<String> mainPublicAccountAuthResult({dynamic hint}) {
+    throw UnimplementedError("mainPublicAccountAuthResult");
+  }
+
+  Future<void> mainPublicAccountLogout({dynamic hint}) {
+    throw UnimplementedError("mainPublicAccountLogout");
+  }
+
+  String mainGetPublicAccount({dynamic hint}) {
+    return '';
+  }
+
   Future<void> mainOnMainWindowClose({dynamic hint}) {
     throw UnimplementedError("mainOnMainWindowClose");
   }
