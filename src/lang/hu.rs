@@ -851,7 +851,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("username-login-disabled-oidc-unavailable", "A felhasználónévvel és jelszóval történő bejelentkezés le van tiltva, és nem érhető el OIDC bejelentkezési mód."),
         ("Public server sign-in", "Bejelentkezés a nyilvános kiszolgálóra"),
         ("public_account_tip", "A nyilvános RustDesk kiszolgáló csak bejelentkezett felhasználókat enged csatlakozni. Itt egy ingyenes fiókkal jelentkezhet be; csak a nyilvános kiszolgálón keresztüli kapcsolatokhoz használjuk."),
-        ("Signed in as {}", "Bejelentkezve: {}"),
+        ("Signed in to the public server as {}", "Bejelentkezve a nyilvános kiszolgálóra: {}"),
         ("Finish signing in in your browser", "Fejezze be a bejelentkezést a böngészőben"),
     ].iter().cloned().collect();
 }
