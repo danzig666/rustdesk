@@ -737,6 +737,19 @@ jobs:
           ls -l ./apk
           gh release upload "$tag" ./apk/*-signed.apk --clobber
 
+      - name: Remove other versions from the nightly release
+        if: env.TAG_NAME == 'dual-server-nightly'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release view "$TAG_NAME" --json assets --jq '.assets[].name' |
+            { grep -v -- "-${VERSION}-" || true; } | while read -r name; do
+              echo "Removing ${name}"
+              gh release delete-asset "$TAG_NAME" "$name" --yes
+            done
+
   # The fallback for the flutter version, we use Sciter for 32bit Windows.
   build-for-windows-sciter:
     if: ${{ inputs.platforms == '' }}
