@@ -29,6 +29,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:window_size/window_size.dart' as window_size;
 
 import '../consts.dart';
+import 'common/widgets/extra_servers.dart';
 import 'common/widgets/overlay.dart';
 import 'mobile/pages/file_manager_page.dart';
 import 'mobile/pages/remote_page.dart';
@@ -1298,6 +1299,16 @@ void msgBox(SessionID sessionId, String type, String title, String text,
   }
   if (link.isNotEmpty) {
     buttons.insert(0, dialogButton('JumpLink', onPressed: jumplink));
+  }
+  if (type.contains('error') && isPublicSignInError(text)) {
+    buttons.insert(
+        0,
+        dialogButton('Sign in to the public server',
+            onPressed: () => showPublicSignInDialog(
+                dialogManager,
+                reconnect == null
+                    ? null
+                    : () => reconnect(dialogManager, sessionId, false))));
   }
   dialogManager.show(
     (setState, close, context) => CustomAlertDialog(
