@@ -702,9 +702,40 @@ jobs:
               --version "$tag" --release-id "$tag" --package-id rustdesk-dual \
               --release-base-url "$base"
             gh release create "$tag" "$out"/* --target "$GITHUB_SHA" \
-              --title "Fork build ${GITHUB_RUN_ID} (Windows ${arch})" \
-              --notes "$(cat changes.md; echo; echo "Signed automatic update for installed copies of this fork. Installers, including Android, are in https://github.com/${GITHUB_REPOSITORY}/releases/tag/dual-server-nightly")"
+              --title "RustDesk Dual build ${GITHUB_RUN_ID}" \
+              --notes "$(cat changes.md; echo; echo "Windows x64: .exe / .msi, also the signed automatic update for installed copies. Android: the -signed.apk files, added when the Android build finishes.")"
           done
+
+  # Fork: adds this run's signed APKs to the release publish-fork-update created, so
+  # the newest release has every installer. Kept separate so Windows updates do not
+  # wait for Android.
+  attach-android-to-fork-release:
+    needs: [publish-fork-update, build-rustdesk-android-universal]
+    if: ${{ always() && needs.publish-fork-update.result == 'success' && needs.build-rustdesk-android-universal.result == 'success' }}
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download Android builds
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: rustdesk-*.apk
+          path: ./apk/
+          merge-multiple: true
+
+      - name: Attach to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag="fork-build-${GITHUB_RUN_ID}-windows-x86_64"
+          if ! gh release view "$tag" > /dev/null 2>&1; then
+            echo "::notice::No release ${tag}; Android files not attached."
+            exit 0
+          fi
+          ls -l ./apk
+          gh release upload "$tag" ./apk/*-signed.apk --clobber
 
   # The fallback for the flutter version, we use Sciter for 32bit Windows.
   build-for-windows-sciter:
