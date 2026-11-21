@@ -853,5 +853,6 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("public_account_tip", "A nyilvános RustDesk kiszolgáló csak bejelentkezett felhasználókat enged csatlakozni. Itt egy ingyenes fiókkal jelentkezhet be; csak a nyilvános kiszolgálón keresztüli kapcsolatokhoz használjuk."),
         ("Signed in to the public server as {}", "Bejelentkezve a nyilvános kiszolgálóra: {}"),
         ("Finish signing in in your browser", "Fejezze be a bejelentkezést a böngészőben"),
+        ("Sign in to the public server", "Bejelentkezés a nyilvános kiszolgálóra"),
     ].iter().cloned().collect();
 }

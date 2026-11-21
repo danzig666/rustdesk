@@ -853,5 +853,6 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("public_account_tip", ""),
         ("Signed in to the public server as {}", ""),
         ("Finish signing in in your browser", ""),
+        ("Sign in to the public server", ""),
     ].iter().cloned().collect();
 }

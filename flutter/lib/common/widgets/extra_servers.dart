@@ -482,3 +482,45 @@ class _PublicAccountTileState extends State<PublicAccountTile> {
     );
   }
 }
+
+/// Whether a connection error is the public server refusing signed-out users.
+bool isPublicSignInError(String text) {
+  final t = text.toLowerCase();
+  return !isWeb &&
+      t.contains('require') &&
+      (t.contains('log in') || t.contains('login') || t.contains('sign in'));
+}
+
+/// The public server sign-in in a dialog, offered from that connection error.
+void showPublicSignInDialog(
+    OverlayDialogManager dialogManager, VoidCallback? onReconnect) {
+  dialogManager.dismissAll();
+  dialogManager.show((setState, close, context) => CustomAlertDialog(
+        title: Text(translate('Public server sign-in')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(translate('public_account_tip'),
+                    style: Theme.of(context).textTheme.bodySmall)
+                .marginOnly(bottom: 8),
+            const PublicAccountTile(),
+          ],
+        ),
+        actions: [
+          dialogButton('Close', onPressed: () {
+            close();
+            closeConnection();
+          }, isOutline: onReconnect != null),
+          if (onReconnect != null)
+            dialogButton('Reconnect', onPressed: () {
+              close();
+              onReconnect();
+            }),
+        ],
+        onCancel: () {
+          close();
+          closeConnection();
+        },
+      ));
+}
